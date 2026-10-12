@@ -1,36 +1,28 @@
 import numpy as np
-
 import pandas as pd
-
 from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.preprocessing import StandardScaler
 
+'''
+-----------------------------------------------------------------------------------------------------------------------
+Data preparation
+'''
+# Read data
+df = pd.read_excel("data/chlorophyll_student_2015_2023.xlsx", sheet_name="daily_data")
 
-
-# read data
-df = pd.read_excel(
-"C:/Users/marga/Documents/tecnico/AAut/proj1/ML_LAB_PART_1_FILES_V2/student_release/data/chlorophyll_student_2015_2023.xlsx",
-sheet_name="daily_data"
-)
-
-# order dates
+# Order dates
 df["date"] = pd.to_datetime(df["date"])
 df = df.sort_values("date").reset_index(drop=True)
 
-
-
-
-
-
-
-
-# 2. Adicionar codificação sazonal (seno e cosseno do dia do ano)
+# Adicionar codificação sazonal (seno e cosseno do dia do ano)
 day_of_year = df["date"].dt.dayofyear
 df["s_year"] = np.sin(2 * np.pi * day_of_year / 365.25)
 df["c_year"] = np.cos(2 * np.pi * day_of_year / 365.25)
 
-# 3. Definição de parâmetros e variáveis
+
+
+# Definição de parâmetros e variáveis
 target_col = "chlorophyll_a_mg_m3"
 # Variáveis exógenas (inclui as medições ambientais + variáveis sazonais)
 exogenous_cols = [c for c in df.columns if c not in ["date", target_col]]
@@ -38,23 +30,33 @@ exogenous_cols = [c for c in df.columns if c not in ["date", target_col]]
 p = 10  # Lags da variável alvo y (dias passados: y(t-1)...y(t-p))
 q = 10  # Lags das variáveis exógenas (medições de t e passadas)
 
-# 4. Criação de Lags usando .shift()
+# Criação de Lags usando .shift()
+
+# chlorophyll_df=[]
+updated_df=df.copy()
 
 # Variável Alvo (Clorofila-a): Apenas lags >= 1 (Lag 0 NUNCA é usado)
 for lag in range(1, p + 1):
-    df[f"chlorophyll_lag_{lag}"] = df[target_col].shift(lag)
+    updated_df=pd.concat([updated_df, df[target_col].shift(lag)], axis=1, ignore_index=True)
+#    df[f"chlorophyll_lag_{lag}"] = df[target_col].shift(lag)
 
 # Variáveis Exógenas: Lags de 0 a q (Lag 0 representa a medição do próprio dia t)
 for col in exogenous_cols:
+#    {col}_df=[]
     for lag in range(0, q + 1):
         if lag == 0:
-            df[f"{col}_lag_0"] = df[col]
+            updated_df=pd.concat([updated_df, df[col]], axis=1, ignore_index=True)
+#            df[f"{col}_lag_0"] = df[col]
         else:
-            df[f"{col}_lag_{lag}"] = df[col].shift(lag)
+            updated_df=pd.concat([updated_df, df[col].shift(lag)], axis=1, ignore_index=True)
+#            df[f"{col}_lag_{lag}"] = df[col].shift(lag)
 
 # Determinar r = max(p, q) e remover as primeiras r linhas com NaNs
-r = max(p, q)
-df_clean = df.dropna().reset_index(drop=True)
+df_clean = updated_df.dropna().reset_index(drop=True)
+
+print(df.describe(include = "all"))
+print(df.columns)
+
 
 # 5. Definição das matrizes X e Y
 feature_cols = [c for c in df_clean.columns if "_lag_" in c]

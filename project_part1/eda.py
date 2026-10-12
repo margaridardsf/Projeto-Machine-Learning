@@ -229,7 +229,7 @@ for j in range(len(num_vars), len(axes)):
     fig.delaxes(axes[j])
 plt.suptitle('Histograms with Best-Fit Distributions per Variable', fontsize=16, fontweight='bold', y=0.99)
 plt.tight_layout()
-plt.savefig("images/project_part1/training_code/histograms_distributions")
+plt.savefig("project_part1/training_code/images/histograms_distributions")
 plt.close()
 
 
