@@ -6,6 +6,9 @@ from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.stattools import adfuller
 from sklearn.preprocessing import StandardScaler
 
+
+# EDA
+
 # read data
 df = pd.read_excel(
 "C:/Users/marga/Documents/tecnico/AAut/proj1/ML_LAB_PART_1_FILES_V2/student_release/data/chlorophyll_student_2015_2023.xlsx",
