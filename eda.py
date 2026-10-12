@@ -235,22 +235,13 @@ plt.close()
 
 '''
 -----------------------------------------------------------------------------------------------------------------------
-ACF e PACF
+Estacionariedade
 '''
 
 # Teste de Estacionariedade (ADF Test)
 adf_result = adfuller(df['chlorophyll_a_mg_m3'].dropna(), result_object=True)
 print(f"Estatística ADF: {adf_result[0]:.4f}")
 print(f"p-value ADF: {adf_result[1]:.4e}")
-
-
-# ACF e PACF da Clorofila-a
-fig, axes = plt.subplots(1, 2, figsize=(12, 4))
-plot_acf(df['chlorophyll_a_mg_m3'].dropna(), lags=30, ax=axes[0], title='ACF - Clorofila-a')
-plot_pacf(df['chlorophyll_a_mg_m3'].dropna(), lags=30, ax=axes[1], title='PACF - Clorofila-a')
-plt.tight_layout()
-plt.savefig("images/ACF_PACF")
-plt.close()
 
 
 '''
@@ -274,14 +265,13 @@ plt.savefig("images/matrix_correlacao")
 plt.close()
 
 
-# Generate a pairplot matrix for all numerical variables
+# Pairplot matrix for all numerical variables
 pairplot_fig = sns.pairplot(
     df[num_vars].dropna(), 
     diag_kind='kde', 
     plot_kws={'alpha': 0.4, 's': 10, 'color': 'forestgreen'},
     diag_kws={'color': 'forestgreen'}
 )
-
 pairplot_fig.fig.suptitle('Scatter Plot Matrix', y=1.02, fontsize=16, fontweight='bold')
 pairplot_fig.savefig("images/scatterplot.png", dpi=300)
 plt.close()
@@ -310,3 +300,101 @@ plt.xlabel('Atraso (Lags em dias)')
 plt.tight_layout()
 plt.savefig("images/correlacao_cruzada_lags")
 plt.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'''
+-----------------------------------------------------------------------------------------------------------------------
+ACF e PACF
+
+# Teste de Estacionariedade (ADF Test)
+adf_result = adfuller(df['chlorophyll_a_mg_m3'].dropna(), result_object=True)
+print(f"Estatística ADF: {adf_result[0]:.4f}")
+print(f"p-value ADF: {adf_result[1]:.4e}")
+
+
+# ACF e PACF da Clorofila-a
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+plot_acf(df['chlorophyll_a_mg_m3'].dropna(), lags=30, ax=axes[0], title='ACF - Clorofila-a')
+plot_pacf(df['chlorophyll_a_mg_m3'].dropna(), lags=30, ax=axes[1], title='PACF - Clorofila-a')
+plt.tight_layout()
+plt.savefig("images/ACF_PACF")
+plt.close()
+'''
