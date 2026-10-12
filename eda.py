@@ -9,8 +9,8 @@ import scipy.stats as stats
 
 '''
 -----------------------------------------------------------------------------------------------------------------------
+Data preparation
 '''
-# Data preparation
 # Read data
 df = pd.read_excel("data/chlorophyll_student_2015_2023.xlsx", sheet_name="daily_data")
 
