@@ -60,7 +60,7 @@ for j in range(len(num_vars), len(axes)):
 
 plt.suptitle('Boxplots per Variable', fontsize=16, fontweight='bold', y=0.99)
 plt.tight_layout()
-plt.savefig("images/boxplots")
+plt.savefig("project_part1/training_code/images/boxplots")
 plt.close()
 
 
@@ -82,7 +82,7 @@ plt.axhline(y=3, color='r', linestyle='--', alpha=0.7, label='Limit Z = +3')
 plt.axhline(y=-3, color='r', linestyle='--', alpha=0.7, label='Limit Z = -3')
 plt.legend(loc='upper right')
 plt.tight_layout()
-plt.savefig("images/boxplots_normalizados")
+plt.savefig("project_part1/training_code/images/boxplots_normalizados")
 plt.close()
 
 
@@ -115,7 +115,7 @@ plt.xlabel('Data')
 plt.ylabel('Chlorophyll-a (mg/m³)')
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig("images/Clorofila-a_Temporal_Trend_Plot")
+plt.savefig("project_part1/training_code/images/Clorofila-a_Temporal_Trend_Plot")
 plt.close()
 
 
@@ -133,7 +133,7 @@ plt.xlabel('Chlorophyll-a (mg/m³)')
 plt.ylabel('Frequency')
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig("images/Clorofila-a_histograma")
+plt.savefig("project_part1/training_code/images/Clorofila-a_histograma")
 plt.close()
 
 
@@ -167,7 +167,7 @@ plt.ylabel('Frequancy')
 plt.legend()
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig("images/Clorofila-a_histograma_distributions")
+plt.savefig("project_part1/training_code/images/Clorofila-a_histograma_distributions")
 plt.close()
 
 
@@ -196,7 +196,7 @@ for j in range(len(num_vars), len(axes)):
     fig.delaxes(axes[j])
 plt.suptitle('Histograms per Variable', fontsize=16, fontweight='bold', y=0.99)
 plt.tight_layout()
-plt.savefig("images/histograms")
+plt.savefig("project_part1/training_code/images/histograms")
 plt.close()
 
 
@@ -229,7 +229,7 @@ for j in range(len(num_vars), len(axes)):
     fig.delaxes(axes[j])
 plt.suptitle('Histograms with Best-Fit Distributions per Variable', fontsize=16, fontweight='bold', y=0.99)
 plt.tight_layout()
-plt.savefig("images/histograms_distributions")
+plt.savefig("images/project_part1/training_code/histograms_distributions")
 plt.close()
 
 
@@ -261,7 +261,7 @@ plt.figure(figsize=(10, 8))
 sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap='coolwarm', vmin=-1, vmax=1)
 plt.title('Matriz de Correlação de Pearson')
 plt.tight_layout()
-plt.savefig("images/matrix_correlacao")
+plt.savefig("project_part1/training_code/images/matrix_correlacao")
 plt.close()
 
 
@@ -273,7 +273,7 @@ pairplot_fig = sns.pairplot(
     diag_kws={'color': 'forestgreen'}
 )
 pairplot_fig.fig.suptitle('Scatter Plot Matrix', y=1.02, fontsize=16, fontweight='bold')
-pairplot_fig.savefig("images/scatterplot.png", dpi=300)
+pairplot_fig.savefig("project_part1/training_code/images/scatterplot.png", dpi=300)
 plt.close()
 
 
@@ -284,7 +284,7 @@ Correlation with Lags
 
 
 # Correlacao Cruzada com Lags das Exogenas (para selecionar lags no ARX)
-lags = range(0, 8)
+lags = range(10, 15)
 target = df['chlorophyll_a_mg_m3']
 
 lag_corrs = pd.DataFrame(index=exogenous_cols, columns=[f'lag_{k}' for k in lags])
@@ -295,10 +295,10 @@ for col in exogenous_cols:
 
 plt.figure(figsize=(10, 6))
 sns.heatmap(lag_corrs.astype(float), annot=True, fmt=".2f", cmap='viridis')
-plt.title('Correlação Cruzada entre Clorofila-a $y(t)$ e $Exógenas(t-k)$')
+plt.title('Correlação Cruzada com Clorofila-a $y(t)$')
 plt.xlabel('Atraso (Lags em dias)')
 plt.tight_layout()
-plt.savefig("images/correlacao_cruzada_lags")
+plt.savefig("project_part1/training_code/images/correlacao_cruzada_lags")
 plt.close()
 
 
