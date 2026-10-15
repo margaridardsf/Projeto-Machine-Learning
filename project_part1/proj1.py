@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 # Import functions and constants from build_lagged_features.py
-from build_lagged_features import (
+from training_code.build_lagged_features import (
     DATE,
     DEFAULT_LAGS,
     TARGET,
