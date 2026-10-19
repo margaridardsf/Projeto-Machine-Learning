@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from utils import constant_prediction
+from utils import build_feature_row, finalize, preprocess_history, standardize
 
 
 def load_model(model_path: str | Path) -> Any:
@@ -30,4 +30,8 @@ def predict(model: Any, history_df: pd.DataFrame, day_features_df: pd.DataFrame)
     prediction procedure. Fitted sklearn.preprocessing input objects are
     allowed; library pipelines and output-processing wrappers are not.
     """
-    return np.asarray([constant_prediction(model)], dtype=float)
+    hist = preprocess_history(history_df, model)
+    row = build_feature_row(hist, day_features_df, model["lag_spec"], model["feature_cols"])
+    x = standardize(row.to_numpy(dtype=float), model["mean"], model["scale"])
+    y_log = model["estimator"].predict(x)
+    return finalize(y_log)
