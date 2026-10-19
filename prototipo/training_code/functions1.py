@@ -222,7 +222,7 @@ def fit_model(model_name, X_train, y_train, tscv=None, alpha=None):
     alpha=None -> alpha chosen by cross-validation (RidgeCV / LassoCV, TimeSeriesSplit)
     alpha=value -> that alpha is used as it is (e.g. the one chosen by the grid search)."""
     if model_name == 'OLS':
-        return LinearRegression().fit(X_train, y_train)
+        return LinearRegression().fit(X_train, y_train) # adicionar intercept true?
 
     if model_name not in ('Ridge', 'Lasso'):
         raise ValueError(f"Unknown model: {model_name}")
