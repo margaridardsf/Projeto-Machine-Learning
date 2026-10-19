@@ -40,14 +40,11 @@ def main() -> None:
     lower = Q1 - 1.5 * IQR
     upper = Q3 + 1.5 * IQR
     outliers_mask = (df[TARGET] < lower) | (df[TARGET] > upper)
-    df.loc[outliers_mask, TARGET] = np.nan
-    train_clean = df[TARGET].dropna()
-    df.loc[outliers_mask, TARGET] = train_clean.mode().iloc[0]
-
     outlier_value = float(df.loc[~outliers_mask, TARGET].round(2).mode().iloc[0])
+    df.loc[outliers_mask, TARGET] = outlier_value
 
 
-    # 4) Filter Lags and Clean exogenous features (["par_umol_m2_s"])
+    # Filter Lags and Clean exogenous features (["par_umol_m2_s"])
     lag_spec = {k: list(v) for k, v in DEFAULT_LAGS.items() if k not in DROP_VARS}
     lagged = build_lagged_frame(df, lag_spec=lag_spec)
 
@@ -84,8 +81,8 @@ def main() -> None:
     artifact = {
         "estimator": model,
         "feature_cols": feature_cols,
-        "mean": scaler.mean,
-        "scale": scaler.scale,
+        "mean": scaler.mean_,
+        "scale": scaler.scale_,
         "lag_spec": final_lag_spec,
         "alpha": alpha,
         "outlier_lower": float(lower),
