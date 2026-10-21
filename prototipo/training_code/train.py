@@ -5,19 +5,16 @@ import pickle
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
-from sklearn.linear_model import Lasso, LassoCV
-from sklearn.model_selection import TimeSeriesSplit
+from sklearn.linear_model import Lasso
 from sklearn.preprocessing import StandardScaler
 
 from build_lagged_features import DATE, DEFAULT_LAGS, TARGET, build_lagged_frame, read_table
 
-# ----------------------------- configuração ---------------------------------
+
 DROP_VARS = ["par_umol_m2_s"]   # variáveis removidas (correlação alta com outras)
 CORR_THRESHOLD = 0.3            # |corr| mínima com o target para manter um lag
-ALPHA_GRID = np.logspace(-5, 1, 300)
-CV_SPLITS = 5                   # nº de folds do TimeSeriesSplit
-CV_TEST_SIZE = 365              # tamanho de cada fold de validação (dias)
+ALPHA = 0.001207                # alpha fixo do Lasso
+TRAIN_END = "2023-01-01"        # treino: apenas datas < 2023-01-01
 MAX_ITER = 20000
 
 
@@ -30,6 +27,9 @@ def main() -> None:
 
     # Read data and order dates
     df = read_table(args.data)
+
+    # Keep training period (before 2023-01-01)
+    df = df.loc[df[DATE] < TRAIN_END]
 
     # Apply log(TARGET)
     df[TARGET] = np.log(df[TARGET].astype(float))
@@ -62,13 +62,8 @@ def main() -> None:
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    # Alpha selection
-    cv = TimeSeriesSplit(n_splits=CV_SPLITS, test_size=CV_TEST_SIZE)
-    lasso_cv = LassoCV(alphas=ALPHA_GRID, cv=cv, max_iter=MAX_ITER).fit(X_scaled, y)
-    alpha = float(lasso_cv.alpha_)
-    print(f"Alpha escolhido (LassoCV, {CV_SPLITS} folds temporais): {alpha:.6f}")
-
     # Final model (Lasso)
+    alpha = ALPHA
     model = Lasso(alpha=alpha, max_iter=MAX_ITER).fit(X_scaled, y)
 
     # Selected lags
