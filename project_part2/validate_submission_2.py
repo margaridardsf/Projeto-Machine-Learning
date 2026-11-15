@@ -8,14 +8,10 @@ import json
 import sys
 from pathlib import Path
 
-import numpy as np
-
-from build_lagged_features import DATE, TARGET, read_table
 from model_artifact_policy import (
     validate_explicit_transformation_sources,
     validate_explicit_transformations,
 )
-
 
 def import_module(path: Path):
     module_dir = str(path.parent.resolve())
@@ -76,11 +72,9 @@ def validate(submission_dir: Path, data_path: Path,
             raise ValueError(f"my_model.py must define callable {name}")
     model = module.load_model(best_model_dir / "model.pkl")
     validate_explicit_transformations(model)
-    raw = read_table(data_path)
     return {"status": "PASS", "group_id": submission_dir.name,
             "training_source_files": len(training_sources),
-            "ai_declaration_files": len(ai_declarations),
-            "checks": checks}
+            "ai_declaration_files": len(ai_declarations)}
 
 
 def main() -> None:
