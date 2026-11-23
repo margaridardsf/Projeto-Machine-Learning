@@ -1,4 +1,3 @@
-"""Structurally valid zero-prediction example; replace it with the final model."""
 
 from __future__ import annotations
 
@@ -9,29 +8,21 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from utils import build_feature_row, finalize, preprocess_history, standardize
+from utils import build_features, predict_proba_class1
 
 
 def load_model(model_path: str | Path) -> Any:
-    """Load and return the submitted fitted model artifact."""
+    """Carrega o modelo guardado (dicionário com coeficientes e parâmetros simples)."""
     with Path(model_path).open("rb") as handle:
         return pickle.load(handle)
 
 
-def predict(model: Any, history_df: pd.DataFrame, day_features_df: pd.DataFrame) -> np.ndarray:
-    """Return the dummy model's constant as a NumPy array with shape (1,).
+def predict(model: Any, day_and_lag_features_df: pd.DataFrame) -> np.ndarray:
+    """Devolve a probabilidade da classe 1 (HAB) como array NumPy finito em [0, 1].
 
-    history_df contains all observations strictly before the prediction date,
-    including past chlorophyll. day_features_df contains exactly the current
-    day's exogenous variables and date, but never current-day chlorophyll.
-
-    This example deliberately does not use either DataFrame. Students must
-    replace it with their lag construction, saved input preprocessing, and
-    prediction procedure. Fitted sklearn.preprocessing input objects are
-    allowed; library pipelines and output-processing wrappers are not.
+    Há um valor por linha do DataFrame recebido (shape (1,) para uma só linha).
+    Cada linha é tratada de forma independente: nenhuma linha futura é usada,
+    nada é reajustado e o DataFrame de entrada não é modificado.
     """
-    hist = preprocess_history(history_df, model)
-    row = build_feature_row(hist, day_features_df, model["lag_spec"], model["feature_cols"])
-    x = standardize(row.to_numpy(dtype=float), model["mean"], model["scale"])
-    y_log = model["estimator"].predict(x)
-    return finalize(y_log)
+    X = build_features(day_and_lag_features_df, model)
+    return np.asarray(predict_proba_class1(model, X), dtype=float).reshape(-1)
