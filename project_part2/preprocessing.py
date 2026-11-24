@@ -70,8 +70,8 @@ def _apply_fills(d, strategy, fills):
 # ----------------------------------------------------------------------------
 # Função principal
 # ----------------------------------------------------------------------------
-def prepare_data(strategy, split_test, one_hot_cluster=True, sin_doy=True, season = "one_hot",
-                scale = False, test_frac=0.15, doy_half_window=15, seed=42, return_dates=False):
+def prepare_data(strategy, split_test, one_hot_cluster=True, sin_doy=True, season = "drop",
+                scale = False, test_frac=0.15, doy_half_window=15, seed=42, return_dates=False, merge_clusters_2_3=False):
     """
     strategy : estratégia para os missing values (CHL, CHL_uncertainty)
         "drop_rows"         – remove linhas de train/val com missing
@@ -111,6 +111,14 @@ def prepare_data(strategy, split_test, one_hot_cluster=True, sin_doy=True, seaso
     df = df.sort_values(["Date", "spatial_cluster"], kind="stable").reset_index(drop=True)
 
 
+    # Fusão dos clusters
+    clusters = (0, 1, 2, 3, 4, 5)
+    if merge_clusters_2_3:
+        df["spatial_cluster"] = df["spatial_cluster"].replace({3: 2})
+        clusters = (0, 1, 2, 4, 5)
+
+
+
     # Separar os dados de test dos restantes dados
     if split_test == "recent":
         n_test = int(round(test_frac * len(df)))
@@ -119,6 +127,13 @@ def prepare_data(strategy, split_test, one_hot_cluster=True, sin_doy=True, seaso
         complete = df[["CHL", "CHL_uncertainty"]].notna().all(axis=1).to_numpy()
         test_mask = is_test & complete      # linhas completas do test
         rest_mask = ~is_test    
+
+    elif split_test in {"recent20": 2020, "recent19": 2019}:
+        year = {"recent20": 2020, "recent19": 2019}[split_test]
+        is_test = (df["Date"].dt.year == year).to_numpy()
+        complete = df[["CHL", "CHL_uncertainty"]].notna().all(axis=1).to_numpy()
+        test_mask = is_test & complete      
+        rest_mask = ~is_test          
 
     else:
         rng = np.random.default_rng(seed)
@@ -158,7 +173,7 @@ def prepare_data(strategy, split_test, one_hot_cluster=True, sin_doy=True, seaso
         train_val["sin_doy"] = np.sin(2 * np.pi * _doy365(train_val["Date"]) / 365)
         test["sin_doy"] = np.sin(2 * np.pi * _doy365(test["Date"]) / 365)
     if one_hot_cluster:
-        for c in range(6):                       
+        for c in clusters:                       
             train_val[f"cluster_{c}"] = (train_val["spatial_cluster"] == c).astype(int)
             test[f"cluster_{c}"] = (test["spatial_cluster"] == c).astype(int)
 
@@ -183,7 +198,7 @@ def prepare_data(strategy, split_test, one_hot_cluster=True, sin_doy=True, seaso
         cols.append("sin_doy")
     if strategy != "drop_features":
         cols += ["CHL_log", "CHL_uncertainty"]
-    cols += ([f"cluster_{c}" for c in range(6)]
+    cols += ([f"cluster_{c}" for c in clusters]
              if one_hot_cluster else ["spatial_cluster"])
 
     assert not test[cols].isna().any().any(), "test com NaN"
