@@ -1,22 +1,22 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
 
-SEASONS = ["Winter", "Spring", "Summer", "Fall"]
-N_CLUSTERS = 6
-
-# Variáveis contínuas (as únicas que são standardizadas).
+CLUSTER_MAP = {3: 2}
+CLUSTERS = [0, 1, 2, 4, 5]
 CONT_COLS = ["SST", "UI", "YDOY", "sin_doy", "CHL_log", "CHL_uncertainty"]
+MISSING_COLS = ["CHL_log", "CHL_uncertainty"]
 
-# Ordem fixa das colunas da matriz X (a mesma no treino e na previsão).
-FEATURE_NAMES = (
-    [f"season_{s}" for s in SEASONS]
-    + ["SST", "UI", "YDOY", "sin_doy", "CHL_log", "CHL_uncertainty"]
-    + [f"cluster_{c}" for c in range(N_CLUSTERS)]
-)
+
+def feature_names(use_chl: bool) -> List[str]:
+    """Ordem fixa das colunas da matriz X (a mesma no treino e na previsão)."""
+    names = ["SST", "UI", "YDOY", "sin_doy"]
+    if use_chl:
+        names += MISSING_COLS
+    return names + [f"cluster_{c}" for c in CLUSTERS]
 
 
 def doy365(dates) -> np.ndarray:
@@ -25,43 +25,29 @@ def doy365(dates) -> np.ndarray:
     return np.minimum(doy, 365)
 
 
+def _numeric(df: pd.DataFrame, col: str) -> pd.Series:
+    if col not in df.columns:                     
+        return pd.Series(np.nan, index=df.index)
+    return pd.to_numeric(df[col], errors="coerce").astype(float)
+
+
 def raw_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Constrói as 19 features a partir das colunas cruas.
-
-    Só aplica operações determinísticas (nada é aprendido aqui):
-    one-hot de Season (categorias fixas) e de spatial_cluster, sin(2*pi*DOY/365)
-    e log(CHL). CHL / CHL_uncertainty em falta ficam como NaN.
-    Não altera o DataFrame recebido; o índice é preservado.
-    """
     out = pd.DataFrame(index=df.index)
-
-    season = df["Season"].astype(str).str.strip()
-    for s in SEASONS:
-        out[f"season_{s}"] = (season == s).astype(float)
-
     for c in ["SST", "UI", "YDOY"]:
-        out[c] = pd.to_numeric(df[c], errors="coerce").astype(float)
-
+        out[c] = _numeric(df, c)
     out["sin_doy"] = np.sin(2.0 * np.pi * doy365(df["Date"]) / 365.0)
 
-    chl = pd.to_numeric(df["CHL"], errors="coerce").astype(float)
-    out["CHL_log"] = np.log(chl.where(chl > 0))          # CHL <= 0 -> NaN
-    out["CHL_uncertainty"] = pd.to_numeric(
-        df["CHL_uncertainty"], errors="coerce").astype(float)
+    chl = _numeric(df, "CHL")
+    out["CHL_log"] = np.log(chl.where(chl > 0))    
+    out["CHL_uncertainty"] = _numeric(df, "CHL_uncertainty")
 
-    cluster = pd.to_numeric(df["spatial_cluster"], errors="coerce")
-    for c in range(N_CLUSTERS):
+    cluster = _numeric(df, "spatial_cluster").replace(CLUSTER_MAP)
+    for c in CLUSTERS:                             
         out[f"cluster_{c}"] = (cluster == c).astype(float)
-
-    return out[FEATURE_NAMES]
+    return out
 
 
 def fill_global(X: pd.DataFrame, fill_values: Dict[str, float]) -> pd.DataFrame:
-    """Preenche NaN das contínuas com valores guardados (medianas do treino).
-
-    No teste oficial todas as linhas são completas, por isso isto só serve de
-    salvaguarda para que a previsão nunca falhe nem devolva NaN.
-    """
     X = X.copy()
     for col, value in fill_values.items():
         if col in X.columns:
@@ -69,29 +55,22 @@ def fill_global(X: pd.DataFrame, fill_values: Dict[str, float]) -> pd.DataFrame:
     return X
 
 
-def standardize(X: pd.DataFrame, mean: Dict[str, float],
-                std: Dict[str, float]) -> np.ndarray:
-    """Standardiza só as contínuas com média/desvio guardados; devolve ndarray.
-
-    As colunas one-hot ficam 0/1. A ordem das colunas é FEATURE_NAMES.
-    """
-    A = X[FEATURE_NAMES].to_numpy(dtype=float, copy=True)
-    for j, name in enumerate(FEATURE_NAMES):
+def minmax(X: pd.DataFrame, names: List[str], lo: Dict[str, float],
+           rng: Dict[str, float]) -> np.ndarray:
+    A = X[names].to_numpy(dtype=float, copy=True)
+    for j, name in enumerate(names):
         if name in CONT_COLS:
-            A[:, j] = (A[:, j] - mean[name]) / std[name]
+            A[:, j] = (A[:, j] - lo[name]) / rng[name]
     return A
 
 
 def build_features(df: pd.DataFrame, model: Dict[str, Any]) -> np.ndarray:
-    """Matriz X (n_linhas x 19) pronta para o modelo, a partir do DataFrame cru."""
-    X = raw_features(df)
-    X = fill_global(X, model["fill_values"])
-    return standardize(X, model["mean"], model["std"])
+    X = fill_global(raw_features(df), model["fill_values"])
+    return minmax(X, model["feature_names"], model["min"], model["range"])
 
 
 def predict_proba_class1(model: Dict[str, Any], A: np.ndarray) -> np.ndarray:
-    """P(HAB=1) da regressão logística guardada: sigmoid(A @ coef + intercept)."""
     coef = np.asarray(model["coef"], dtype=float)
     z = A @ coef + float(model["intercept"])
-    p = 0.5 * (1.0 + np.tanh(0.5 * z))                   # sigmoid numericamente estável
+    p = 0.5 * (1.0 + np.tanh(0.5 * z))                
     return np.clip(np.nan_to_num(p, nan=0.5, posinf=1.0, neginf=0.0), 0.0, 1.0)

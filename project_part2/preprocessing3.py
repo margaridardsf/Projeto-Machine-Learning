@@ -1,10 +1,6 @@
 import numpy as np
 import pandas as pd
 
-
-# ----------------------------------------------------------------------------
-# Constantes
-# ----------------------------------------------------------------------------
 VALID_STRATEGIES = {
     "drop_rows",
     "drop_features",
@@ -13,8 +9,7 @@ VALID_STRATEGIES = {
     "doy_window_median",
     "ridge_regression",
 }
-# "none" = sem conjunto de test: train_val fica com TODAS as linhas (usar para CV em todos os anos
-# e para o ajuste final do modelo).
+
 VALID_SPLITS = {"recent", "recent19", "recent20", "stratified", "none"}
 VALID_SEASONS = {"one_hot", "drop"}
 VALID_CV = {"loyo", "forward"}
@@ -34,14 +29,8 @@ def _doy365(date):
     return np.minimum(date.dt.dayofyear.to_numpy(), 365)
 
 
-# --- Imputação por regressão Ridge (implementada explicitamente em NumPy) ---
+# Imputação por regressão Ridge
 def _impute_design(d, clusters, n_harmonics, use_env):
-    """
-    Matriz de features do imputador (só variáveis sempre observadas; NUNCA o HAB):
-      - harmónicas sazonais sin/cos(2π·k·DOY/365), k = 1..n_harmonics
-      - dummies do spatial_cluster (já com a fusão aplicada)
-      - opcionalmente SST e UI
-    """
     doy = _doy365(d["Date"])
     cols = []
     for k in range(1, n_harmonics + 1):
@@ -55,14 +44,11 @@ def _impute_design(d, clusters, n_harmonics, use_env):
 
 
 def _ridge_fit(X, y, alpha):
-    """Ridge em forma fechada: standardiza X, intercepto não penalizado."""
     mu = X.mean(axis=0)
     sd = X.std(axis=0)
     sd[sd == 0] = 1.0
     Z = (X - mu) / sd
     y_mean = y.mean()
-    # lstsq (mínima norma) em vez de solve: continua válido com alpha=0, em que as
-    # dummies do cluster são colineares com o intercepto (matriz singular)
     w = np.linalg.lstsq(Z.T @ Z + alpha * np.eye(Z.shape[1]), Z.T @ (y - y_mean), rcond=None)[0]
     return {"mu": mu, "sd": sd, "w": w, "b": y_mean, "alpha": float(alpha)}
 
@@ -101,12 +87,12 @@ def _learn_fills(train, strategy, doy_half_window, clusters=(0, 1, 2, 4, 5),
         years = obs["Date"].dt.year.to_numpy()
         fills["design"] = (tuple(clusters), impute_harmonics, impute_use_env)
         fills["ridge"], fills["bounds"] = {}, {}
-        for c in FILL_COLS:                      # um modelo por variável a imputar
+        for c in FILL_COLS:                    
             y = obs[c].to_numpy(float)
             a = (_select_alpha(X, y, years, RIDGE_ALPHA_GRID)
                  if impute_alpha == "auto" else float(impute_alpha))
             fills["ridge"][c] = _ridge_fit(X, y, a)
-            fills["bounds"][c] = (y.min(), y.max())   # previsões limitadas ao intervalo observado
+            fills["bounds"][c] = (y.min(), y.max())   
     return fills
 
 
@@ -137,7 +123,7 @@ def _apply_fills(d, strategy, fills):
         doy = _doy365(d["Date"])
         for i in np.flatnonzero(miss):
             diff = np.abs(fills["obs_doy"] - doy[i])
-            diff = np.minimum(diff, 365 - diff)           # distância circular
+            diff = np.minimum(diff, 365 - diff)           
             in_win = diff <= fills["half_window"]
             for j, c in enumerate(FILL_COLS):
                 if np.isnan(d[c].iloc[i]):
@@ -145,26 +131,6 @@ def _apply_fills(d, strategy, fills):
                          if in_win.any() else fills["global"][c])
                     d.iloc[i, d.columns.get_loc(c)] = v
     return d
-
-
-def _validate_args(strategy, split_test, season, test_frac, doy_half_window,
-                   impute_alpha, impute_harmonics, cv="loyo"):
-    if strategy not in VALID_STRATEGIES:
-        raise ValueError(f"strategy inválida: {strategy!r}. Opções: {sorted(VALID_STRATEGIES)}")
-    if split_test not in VALID_SPLITS:
-        raise ValueError(f"split_test inválido: {split_test!r}. Opções: {sorted(VALID_SPLITS)}")
-    if season not in VALID_SEASONS:
-        raise ValueError(f"season inválido: {season!r}. Opções: {sorted(VALID_SEASONS)}")
-    if cv not in VALID_CV:
-        raise ValueError(f"cv inválido: {cv!r}. Opções: {sorted(VALID_CV)}")
-    if not (0.0 < test_frac < 1.0):
-        raise ValueError(f"test_frac deve estar entre 0 e 1 (recebido: {test_frac})")
-    if doy_half_window < 0:
-        raise ValueError(f"doy_half_window deve ser >= 0 (recebido: {doy_half_window})")
-    if not (isinstance(impute_harmonics, (int, np.integer)) and impute_harmonics >= 0):
-        raise ValueError(f"impute_harmonics deve ser um inteiro >= 0 (recebido: {impute_harmonics!r})")
-    if not (impute_alpha == "auto" or (isinstance(impute_alpha, (int, float)) and impute_alpha >= 0)):
-        raise ValueError(f"impute_alpha deve ser 'auto' ou um número >= 0 (recebido: {impute_alpha!r})")
 
 
 def _load_raw(merge_clusters_2_3):
@@ -183,7 +149,7 @@ def _load_raw(merge_clusters_2_3):
 
 
 def _split_raw(df, split_test, test_frac, seed):
-    """Separa os dados de test dos restantes (train_val). Devolve (train_val, test) em bruto."""
+    """Separa os dados de test dos restantes (train_val)"""
     complete = df["_obs"].to_numpy()
 
     if split_test == "none":
@@ -236,13 +202,6 @@ def _split_raw(df, split_test, test_frac, seed):
 
 def _featurize(train, evals, strategy, clusters, one_hot_cluster, sin_doy, season, scale,
                doy_half_window, impute_alpha, impute_harmonics, impute_use_env):
-    """
-    Constrói as features. TUDO o que é aprendido (medianas / ridge da imputação, médias e
-    desvios do scaling) vem só das linhas de `train`; as linhas de `evals` (lista de
-    DataFrames, ex.: [val] ou [test]) apenas recebem a transformação.
-
-    Devolve (X_train, y_train, dates_train, [X_eval...], [y_eval...], [dates_eval...]).
-    """
     train = train.copy()
     evals = [e.copy() for e in evals]
 
@@ -299,9 +258,9 @@ def _featurize(train, evals, strategy, clusters, one_hot_cluster, sin_doy, seaso
             X_evals, [e["HAB"] for e in evals], [e["Date"] for e in evals])
 
 
-# ----------------------------------------------------------------------------
-# Função principal
-# ----------------------------------------------------------------------------
+
+
+
 def prepare_data(strategy,
     split_test,
     one_hot_cluster=True,
@@ -369,8 +328,7 @@ def prepare_data(strategy,
     ou, com return_dates=True:
     (X_train_val, y_train_val, X_test, y_test, dates_train_val, dates_test)
     """
-    _validate_args(strategy, split_test, season, test_frac, doy_half_window,
-                   impute_alpha, impute_harmonics)
+
 
     df, clusters = _load_raw(merge_clusters_2_3)
     train_val, test = _split_raw(df, split_test, test_frac, seed)
@@ -421,8 +379,7 @@ def cv_folds(strategy,
 
     Devolve uma lista de dicts com: val_year, X_train, y_train, X_val, y_val, dates_val.
     """
-    _validate_args(strategy, split_test, season, test_frac, doy_half_window,
-                   impute_alpha, impute_harmonics, cv)
+    
 
     df, clusters = _load_raw(merge_clusters_2_3)
     train_val, _ = _split_raw(df, split_test, test_frac, seed)
